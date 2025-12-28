@@ -30,17 +30,23 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
     setMicMuted,
     error,
     apiKeyReady,
-    audioLevel
+    audioLevel,
+    micPermissionGranted
   } = useRealtimeAgent(elevenLabsAgentId);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
   const isEndingRef = useRef(false);
 
   // El hook ahora maneja la conexión automáticamente cuando la API key está lista
   // No necesitamos conectar manualmente aquí
+  
+  // Usar un ref para rastrear el último transcript procesado y evitar actualizaciones infinitas
+  const lastTranscriptRef = useRef<string>('');
 
   useEffect(() => {
-    if (transcript && onTranscriptUpdate) {
+    // Solo actualizar si el transcript realmente cambió
+    if (transcript && transcript !== lastTranscriptRef.current && onTranscriptUpdate) {
       console.log('📝 [CALL VIEW] Transcript updated, length:', transcript.length);
+      lastTranscriptRef.current = transcript;
       onTranscriptUpdate(transcript);
     }
   }, [transcript, onTranscriptUpdate]);
@@ -122,7 +128,9 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
             <div className="flex flex-col items-center gap-3">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-blue-500"></div>
               <p className="text-gray-900 text-lg font-medium">Conectando...</p>
-              <p className="text-gray-500 text-sm">Solicitando permisos de micrófono</p>
+              <p className="text-gray-500 text-sm">
+                {micPermissionGranted ? 'Estableciendo conexión...' : 'Solicitando permisos de micrófono'}
+              </p>
             </div>
           ) : isConnected ? (
             <div className="flex flex-col items-center gap-3">

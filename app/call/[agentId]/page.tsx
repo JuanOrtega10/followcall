@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useParams } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Agent } from '@/types/agent';
 import { Call } from '@/types/call';
 import { getAgent } from '@/lib/storage';
@@ -94,6 +94,35 @@ export default function CallPage() {
 
     initializeCall();
   }, [params.agentId, router]);
+
+  // Usar un ref para mantener la referencia al call actual sin causar recreaciones del callback
+  const callRef = useRef<Call | null>(null);
+  
+  // Actualizar el ref cuando call cambie
+  useEffect(() => {
+    callRef.current = call;
+  }, [call]);
+
+  // Memoizar handleTranscriptUpdate antes de cualquier return condicional
+  // Usar useRef para call en lugar de dependencia para evitar recreaciones
+  const handleTranscriptUpdate = useCallback((transcript: string) => {
+    // Actualizar el ref inmediatamente para tener siempre la versión más reciente
+    latestTranscriptRef.current = transcript;
+    
+    // Usar callRef.current en lugar de call directamente para evitar dependencias
+    const currentCall = callRef.current;
+    if (currentCall) {
+      console.log('📝 [TRANSCRIPT UPDATE] Updating call transcript, length:', transcript.length);
+      const updatedCall: Call = {
+        ...currentCall,
+        transcript,
+        duration: Math.floor((Date.now() - new Date(currentCall.startedAt).getTime()) / 1000),
+      };
+      setCall(updatedCall);
+      saveCall(updatedCall);
+      console.log('✅ [TRANSCRIPT UPDATE] Call saved with updated transcript');
+    }
+  }, []); // Sin dependencias - usar refs para valores que cambian
 
   const handleEndCall = async () => {
     console.log('🔴 [CALL END] handleEndCall called', { 
@@ -380,23 +409,6 @@ Agente: Adiós, María. Que tengas un buen día.
       </div>
     );
   }
-
-  const handleTranscriptUpdate = (transcript: string) => {
-    // Actualizar el ref inmediatamente para tener siempre la versión más reciente
-    latestTranscriptRef.current = transcript;
-    
-    if (call) {
-      console.log('📝 [TRANSCRIPT UPDATE] Updating call transcript, length:', transcript.length);
-      const updatedCall: Call = {
-        ...call,
-        transcript,
-        duration: Math.floor((Date.now() - new Date(call.startedAt).getTime()) / 1000),
-      };
-      setCall(updatedCall);
-      saveCall(updatedCall);
-      console.log('✅ [TRANSCRIPT UPDATE] Call saved with updated transcript');
-    }
-  };
 
   // Usar siempre el agente por defecto
   const defaultAgentId = 'agent_2401kdkas1a9evba5w8tezpfesvf';

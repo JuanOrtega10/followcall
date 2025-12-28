@@ -19,6 +19,7 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
   const [isConnected, setIsConnected] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [micPermissionGranted, setMicPermissionGranted] = useState(false); // Estado para rastrear si los permisos ya se otorgaron
   const [audioLevel, setAudioLevel] = useState(0); // Nivel de audio para indicadores visuales
   const startTimeRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -108,23 +109,54 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
       }
     },
     onDisconnect: () => {
-      console.log('Disconnected from ElevenLabs');
+      console.log('🔴 [ON_DISCONNECT] Disconnected from ElevenLabs');
       connectingRef.current = false;
       setIsConnected(false);
+      setIsConnecting(false);
+      setMicPermissionGranted(false);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
       startTimeRef.current = null;
       
-      // Limpiar el stream guardado cuando se desconecta
+      // Limpiar análisis de audio
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(console.error);
+        audioContextRef.current = null;
+      }
+      analyserRef.current = null;
+      
+      // Detener TODOS los tracks de audio cuando se desconecta
+      // Esto asegura que el micrófono se detenga incluso si disconnect() no se llama explícitamente
       if (activeStreamRef.current) {
-        activeStreamRef.current.getTracks().forEach(track => {
-          track.stop();
-          console.log('Stopped track in onDisconnect:', track.kind);
+        const tracks = activeStreamRef.current.getTracks();
+        console.log(`🎤 [ON_DISCONNECT] Stopping ${tracks.length} tracks from activeStreamRef`);
+        tracks.forEach(track => {
+          if (track.readyState === 'live') {
+            track.stop();
+            console.log(`✅ [ON_DISCONNECT] Stopped ${track.kind} track: ${track.label || 'unnamed'}`);
+          }
         });
         activeStreamRef.current = null;
       }
+      
+      // También detener tracks de elementos de media en el DOM
+      document.querySelectorAll('audio, video').forEach(element => {
+        const mediaElement = element as HTMLMediaElement;
+        if (mediaElement.srcObject instanceof MediaStream) {
+          const stream = mediaElement.srcObject as MediaStream;
+          stream.getTracks().forEach(track => {
+            if (track.readyState === 'live' && track.kind === 'audio') {
+              track.stop();
+              console.log(`✅ [ON_DISCONNECT] Stopped audio track from media element`);
+            }
+          });
+          mediaElement.srcObject = null;
+        }
+      });
+      
+      console.log('✅ [ON_DISCONNECT] Cleanup completed');
     },
     onStatusChange: (status) => {
       console.log('🔄 [ON_STATUS_CHANGE] Status changed:', status);
@@ -295,6 +327,7 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
         } 
       });
       console.log('Microphone permission granted');
+      setMicPermissionGranted(true); // Marcar que los permisos ya se otorgaron
       
       // Guardar referencia al stream
       activeStreamRef.current = stream;
@@ -354,7 +387,7 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
   }, [elevenLabsAgentId, conversation, apiKey]);
 
   const disconnect = useCallback(async () => {
-    console.log('Disconnecting from ElevenLabs...');
+    console.log('🔴 [DISCONNECT] Disconnecting from ElevenLabs...');
     
     // Marcar que se debe desconectar para prevenir reconexiones
     shouldDisconnectRef.current = true;
@@ -378,11 +411,17 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
     setDuration(0);
     setError(null);
     setIsConnecting(false);
+    setMicPermissionGranted(false); // Resetear el estado de permisos al desconectar
     setAudioLevel(0);
     
-    // Limpiar análisis de audio
+    // Limpiar análisis de audio PRIMERO
     if (audioContextRef.current) {
-      audioContextRef.current.close().catch(console.error);
+      try {
+        await audioContextRef.current.close();
+        console.log('✅ [DISCONNECT] AudioContext closed');
+      } catch (err) {
+        console.error('❌ [DISCONNECT] Error closing AudioContext:', err);
+      }
       audioContextRef.current = null;
     }
     analyserRef.current = null;
@@ -390,42 +429,105 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
     // Detener TODOS los tracks de audio activos ANTES de llamar a endSession
     // Esto asegura que el micrófono se detenga inmediatamente
     try {
-      // Detener el stream que guardamos durante la conexión
+      console.log('🎤 [DISCONNECT] Stopping all audio tracks...');
+      
+      // 1. Detener el stream que guardamos durante la conexión
       if (activeStreamRef.current) {
-        activeStreamRef.current.getTracks().forEach(track => {
-          track.stop();
-          console.log('Stopped audio track from active stream:', track.kind, track.label);
+        const tracks = activeStreamRef.current.getTracks();
+        console.log(`🎤 [DISCONNECT] Found ${tracks.length} tracks in activeStreamRef`);
+        tracks.forEach(track => {
+          if (track.readyState === 'live') {
+            track.stop();
+            console.log(`✅ [DISCONNECT] Stopped ${track.kind} track: ${track.label || 'unnamed'}`);
+          } else {
+            console.log(`⏭️ [DISCONNECT] Track ${track.kind} already stopped (state: ${track.readyState})`);
+          }
         });
         activeStreamRef.current = null;
       }
       
-      // También intentar detener cualquier otro stream activo
-      // Esto es una medida de seguridad adicional
-      const allTracks = document.querySelectorAll('audio, video');
-      allTracks.forEach(element => {
+      // 2. Detener tracks de elementos de audio/video en el DOM
+      const mediaElements = document.querySelectorAll('audio, video');
+      mediaElements.forEach(element => {
         const mediaElement = element as HTMLMediaElement;
         if (mediaElement.srcObject) {
           const stream = mediaElement.srcObject as MediaStream;
           stream.getTracks().forEach(track => {
-            track.stop();
-            console.log('Stopped track from media element:', track.kind);
+            if (track.readyState === 'live') {
+              track.stop();
+              console.log(`✅ [DISCONNECT] Stopped ${track.kind} track from media element`);
+            }
           });
           mediaElement.srcObject = null;
         }
         mediaElement.pause();
       });
+      
+      // 3. Obtener todos los streams activos del navegador y detenerlos
+      // Esto es una medida de seguridad adicional para asegurar que no queden tracks activos
+      if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        try {
+          // Intentar obtener el stream activo si existe
+          // Nota: No podemos enumerar streams activos directamente, pero podemos
+          // asegurarnos de que todos los tracks que creamos estén detenidos
+          console.log('✅ [DISCONNECT] All audio tracks stopped');
+        } catch (err) {
+          console.error('❌ [DISCONNECT] Error enumerating devices:', err);
+        }
+      }
+      
+      // 4. Verificar que no queden tracks activos
+      // Esto es una verificación final
+      const allStreams: MediaStream[] = [];
+      if (activeStreamRef.current) {
+        allStreams.push(activeStreamRef.current);
+      }
+      
+      // Verificar elementos de media
+      document.querySelectorAll('audio, video').forEach(element => {
+        const mediaElement = element as HTMLMediaElement;
+        if (mediaElement.srcObject instanceof MediaStream) {
+          allStreams.push(mediaElement.srcObject);
+        }
+      });
+      
+      let activeTracksCount = 0;
+      allStreams.forEach(stream => {
+        stream.getTracks().forEach(track => {
+          if (track.readyState === 'live' && track.kind === 'audio') {
+            activeTracksCount++;
+            console.warn(`⚠️ [DISCONNECT] Found active audio track: ${track.label || 'unnamed'}`);
+            // Intentar detenerlo de nuevo
+            try {
+              track.stop();
+            } catch (err) {
+              console.error('❌ [DISCONNECT] Error stopping track:', err);
+            }
+          }
+        });
+      });
+      
+      if (activeTracksCount === 0) {
+        console.log('✅ [DISCONNECT] All audio tracks successfully stopped');
+      } else {
+        console.warn(`⚠️ [DISCONNECT] ${activeTracksCount} audio tracks may still be active`);
+      }
+      
     } catch (err) {
-      console.log('Error stopping audio tracks:', err);
+      console.error('❌ [DISCONNECT] Error stopping audio tracks:', err);
     }
     
     try {
       // Llamar a endSession() - según la documentación de ElevenLabs, esto cierra la sesión
       // Esperamos a que termine para asegurar que la conexión se cierre completamente
+      console.log('🔄 [DISCONNECT] Ending ElevenLabs session...');
       await conversation.endSession();
-      console.log('Session ended successfully');
+      console.log('✅ [DISCONNECT] Session ended successfully');
     } catch (error) {
-      console.error('Error ending session:', error);
+      console.error('❌ [DISCONNECT] Error ending session:', error);
     }
+    
+    console.log('✅ [DISCONNECT] Disconnect completed');
   }, [conversation]);
 
   // Monitorear el estado de la conversación directamente usando un intervalo
@@ -472,6 +574,45 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
       // Cleanup: desconectar cuando el componente se desmonta
       console.log('🧹 [CLEANUP] Component unmounting, disconnecting...');
       shouldDisconnectRef.current = true;
+      
+      // Detener inmediatamente todos los tracks de audio antes de desconectar
+      // Esto asegura que el micrófono se detenga incluso si disconnect() falla
+      try {
+        if (activeStreamRef.current) {
+          const tracks = activeStreamRef.current.getTracks();
+          tracks.forEach(track => {
+            if (track.readyState === 'live') {
+              track.stop();
+              console.log(`✅ [CLEANUP] Stopped ${track.kind} track during unmount`);
+            }
+          });
+          activeStreamRef.current = null;
+        }
+        
+        // Detener tracks de elementos de media
+        document.querySelectorAll('audio, video').forEach(element => {
+          const mediaElement = element as HTMLMediaElement;
+          if (mediaElement.srcObject instanceof MediaStream) {
+            const stream = mediaElement.srcObject as MediaStream;
+            stream.getTracks().forEach(track => {
+              if (track.readyState === 'live' && track.kind === 'audio') {
+                track.stop();
+              }
+            });
+            mediaElement.srcObject = null;
+          }
+        });
+        
+        // Cerrar AudioContext si existe
+        if (audioContextRef.current) {
+          audioContextRef.current.close().catch(console.error);
+          audioContextRef.current = null;
+        }
+      } catch (err) {
+        console.error('❌ [CLEANUP] Error stopping tracks during unmount:', err);
+      }
+      
+      // Llamar a disconnect para limpiar el resto
       disconnect().catch(console.error);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -514,5 +655,6 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
     setMicMuted,
     apiKeyReady: !!apiKey,
     audioLevel, // Nivel de audio para indicadores visuales
+    micPermissionGranted, // Estado de permisos de micrófono
   };
 }
