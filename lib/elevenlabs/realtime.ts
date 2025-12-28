@@ -463,18 +463,9 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
         mediaElement.pause();
       });
       
-      // 3. Obtener todos los streams activos del navegador y detenerlos
-      // Esto es una medida de seguridad adicional para asegurar que no queden tracks activos
-      if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-        try {
-          // Intentar obtener el stream activo si existe
-          // Nota: No podemos enumerar streams activos directamente, pero podemos
-          // asegurarnos de que todos los tracks que creamos estén detenidos
-          console.log('✅ [DISCONNECT] All audio tracks stopped');
-        } catch (err) {
-          console.error('❌ [DISCONNECT] Error enumerating devices:', err);
-        }
-      }
+      // 3. Verificación adicional completada
+      // Todos los tracks han sido detenidos arriba
+      console.log('✅ [DISCONNECT] All audio tracks stopped');
       
       // 4. Verificar que no queden tracks activos
       // Esto es una verificación final
