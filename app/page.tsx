@@ -13,25 +13,35 @@ export default function Home() {
   const [successRate, setSuccessRate] = useState<number | null>(null);
 
   useEffect(() => {
+    // Inicializar en 0
+    setCallsToday(0);
+    setSuccessRate(null);
+    
     const agentsList = getAgents();
     setAgents(agentsList);
 
     // Calcular llamadas de hoy
-    const calls = getCalls();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayCalls = calls.filter(call => {
-      const callDate = new Date(call.startedAt);
-      callDate.setHours(0, 0, 0, 0);
-      return callDate.getTime() === today.getTime();
-    });
-    setCallsToday(todayCalls.length);
+    try {
+      const calls = getCalls();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayCalls = calls.filter(call => {
+        if (!call.startedAt) return false;
+        const callDate = new Date(call.startedAt);
+        callDate.setHours(0, 0, 0, 0);
+        return callDate.getTime() === today.getTime();
+      });
+      setCallsToday(todayCalls.length);
 
-    // Calcular tasa de éxito (llamadas completadas con structuredData)
-    const completedCalls = calls.filter(call => call.status === 'completed' && call.structuredData);
-    if (calls.length > 0) {
-      const rate = Math.round((completedCalls.length / calls.length) * 100);
-      setSuccessRate(rate);
+      // Calcular tasa de éxito (llamadas completadas con structuredData)
+      const completedCalls = calls.filter(call => call.status === 'completed' && call.structuredData);
+      if (calls.length > 0) {
+        const rate = Math.round((completedCalls.length / calls.length) * 100);
+        setSuccessRate(rate);
+      }
+    } catch (error) {
+      // En caso de error, mantener en 0
+      setCallsToday(0);
     }
   }, []);
 
