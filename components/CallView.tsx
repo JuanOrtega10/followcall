@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRealtimeAgent } from '@/lib/elevenlabs/realtime';
 import SubtitleToggle from './SubtitleToggle';
 import CallControls from './CallControls';
@@ -30,16 +30,26 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
     error 
   } = useRealtimeAgent(elevenLabsAgentId);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
+  const hasConnectedRef = useRef(false);
+  const isEndingRef = useRef(false);
 
   useEffect(() => {
-    if (elevenLabsAgentId) {
-      connect();
+    if (!elevenLabsAgentId || hasConnectedRef.current || isEndingRef.current) {
+      return;
     }
 
+    // Solo conectar una vez cuando el componente se monta
+    hasConnectedRef.current = true;
+    connect();
+
     return () => {
-      disconnect();
+      // Cleanup: desconectar cuando el componente se desmonta
+      if (!isEndingRef.current) {
+        disconnect();
+      }
     };
-  }, [elevenLabsAgentId, connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elevenLabsAgentId]); // Remover connect y disconnect de las dependencias para evitar reconexiones
 
   useEffect(() => {
     if (transcript && onTranscriptUpdate) {
@@ -47,9 +57,28 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
     }
   }, [transcript, onTranscriptUpdate]);
 
-  const handleEndCall = () => {
-    disconnect();
-    onEndCall();
+  const handleEndCall = async () => {
+    if (isEndingRef.current) {
+      console.log('Already ending call, skipping...');
+      return;
+    }
+    
+    isEndingRef.current = true;
+    console.log('End call button clicked');
+    
+    try {
+      // Desconectar primero y esperar a que termine completamente
+      await disconnect();
+      console.log('Disconnected successfully, redirecting...');
+      // Esperar un momento adicional para asegurar que todo se limpie
+      await new Promise(resolve => setTimeout(resolve, 500));
+      // Luego ejecutar el callback
+      onEndCall();
+    } catch (error) {
+      console.error('Error ending call:', error);
+      // Aún así ejecutar el callback para redirigir
+      onEndCall();
+    }
   };
 
   return (

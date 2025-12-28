@@ -1,5 +1,6 @@
 import { createElevenLabsAgent, getElevenLabsAgent } from './client';
 import { Agent } from '@/types/agent';
+import { generateId } from '@/lib/storage';
 
 export async function createAgent(agent: Omit<Agent, 'id' | 'createdAt' | 'updatedAt' | 'elevenLabsAgentId'>): Promise<Agent> {
   try {
@@ -12,7 +13,7 @@ export async function createAgent(agent: Omit<Agent, 'id' | 'createdAt' | 'updat
 
     const fullAgent: Agent = {
       ...agent,
-      id: `agent-${Date.now()}`,
+      id: generateId(),
       elevenLabsAgentId: elevenLabsResponse.agent_id || elevenLabsResponse.id,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

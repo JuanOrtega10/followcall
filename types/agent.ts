@@ -7,6 +7,7 @@ export interface Agent {
   systemPrompt: string;
   voiceId: string;
   language: string;
+  firstMessage?: string;
   elevenLabsAgentId?: string;
   dataSchema: DataSchema;
   createdAt: string;

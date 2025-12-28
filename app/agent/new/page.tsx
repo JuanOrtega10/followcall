@@ -10,22 +10,21 @@ export default function NewAgentPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleSubmit = async (agentData: Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>) => {
     setLoading(true);
+    setError(null);
     try {
-      // Crear agente en ElevenLabs a través de API Route (servidor)
-      const response = await fetch('/api/agents/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(agentData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-        throw new Error(errorData.error || 'Error al crear agente');
-      }
-
-      const agent: Agent = await response.json();
+      // El usuario ya ingresó el Agent ID de ElevenLabs manualmente en el campo voiceId
+      // Simplemente crear el agente local con ese ID
+      const agent: Agent = {
+        ...agentData,
+        id: generateId(),
+        elevenLabsAgentId: agentData.voiceId, // El voiceId contiene el Agent ID de ElevenLabs
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
       
       // Guardar en localStorage
       saveAgent(agent);
@@ -34,15 +33,11 @@ export default function NewAgentPage() {
       router.push(`/call/${agent.id}`);
     } catch (error) {
       console.error('Error creating agent:', error);
-      // Aún así guardar localmente si falla ElevenLabs
-      const localAgent: Agent = {
-        ...agentData,
-        id: generateId(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      saveAgent(localAgent);
-      router.push(`/call/${localAgent.id}`);
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('Error desconocido al crear el agente');
+      }
     } finally {
       setLoading(false);
     }
@@ -57,6 +52,12 @@ export default function NewAgentPage() {
         </div>
 
         <div className="bg-gray-800/50 rounded-lg p-8 border border-gray-700">
+          {error && (
+            <div className="mb-6 p-4 bg-red-900/50 border border-red-700 rounded-lg">
+              <p className="text-red-200 font-medium mb-2">Error al crear agente</p>
+              <p className="text-red-300 text-sm">{error}</p>
+            </div>
+          )}
           <AgentForm onSubmit={handleSubmit} />
         </div>
       </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 interface CallControlsProps {
   onEndCall: () => void;
   isMuted?: boolean;
@@ -7,21 +9,44 @@ interface CallControlsProps {
 }
 
 export default function CallControls({ onEndCall, isMuted = false, onToggleMute }: CallControlsProps) {
+  const [isEnding, setIsEnding] = useState(false);
+
+  const handleEndCall = async () => {
+    if (isEnding) return; // Prevenir múltiples clics
+    
+    setIsEnding(true);
+    try {
+      await onEndCall();
+    } catch (error) {
+      console.error('Error ending call:', error);
+      setIsEnding(false);
+    }
+  };
+
   return (
     <div className="flex gap-4 justify-center">
       {onToggleMute && (
         <button
           onClick={onToggleMute}
-          className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+          disabled={isEnding}
+          className="px-6 py-3 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
         >
           {isMuted ? 'Unmute' : 'Mute'}
         </button>
       )}
       <button
-        onClick={onEndCall}
-        className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+        onClick={handleEndCall}
+        disabled={isEnding}
+        className="px-8 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
       >
-        End Interview
+        {isEnding ? (
+          <>
+            <span className="animate-spin">⏳</span>
+            <span>Ending...</span>
+          </>
+        ) : (
+          'End Interview'
+        )}
       </button>
     </div>
   );

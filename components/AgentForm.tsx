@@ -15,7 +15,8 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
   const [name, setName] = useState(agent?.name || 'Asistente de consultorio');
   const [objective, setObjective] = useState(agent?.objective || 'Quiero llamar a mis pacientes para saber como va su tratamiento');
   const [systemPrompt, setSystemPrompt] = useState(agent?.systemPrompt || '');
-  const [voiceId, setVoiceId] = useState(agent?.voiceId || '');
+  // Usar elevenLabsAgentId si existe, sino usar voiceId (para compatibilidad)
+  const [voiceId, setVoiceId] = useState(agent?.elevenLabsAgentId || agent?.voiceId || '');
   const [dataSchema, setDataSchema] = useState<DataSchema>(agent?.dataSchema || { fields: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
         name,
         objective,
         systemPrompt,
-        voiceId,
+        voiceId, // Este campo ahora contiene el Agent ID de ElevenLabs
         language: 'es',
         dataSchema,
       });
@@ -115,18 +116,18 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
 
       <div>
         <label className="block text-sm font-medium text-gray-300 mb-2">
-          Voice ID (ElevenLabs)
+          Agent ID (ElevenLabs)
         </label>
         <input
           type="text"
           value={voiceId}
           onChange={(e) => setVoiceId(e.target.value)}
           className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-purple-500 focus:outline-none"
-          placeholder="Ej: 21m00Tcm4TlvDq8ikWAM"
+          placeholder="Pega aquí el Agent ID de ElevenLabs"
           required
         />
         <p className="text-xs text-gray-500 mt-1">
-          Puedes obtener Voice IDs desde el dashboard de ElevenLabs
+          Crea un agente en <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">ElevenLabs Dashboard</a> y copia el Agent ID aquí
         </p>
       </div>
 

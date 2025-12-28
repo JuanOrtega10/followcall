@@ -4,7 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Agent } from '@/types/agent';
-import { getAgent, deleteAgent } from '@/lib/storage';
+import { getAgent, deleteAgent, saveAgent } from '@/lib/storage';
 import AgentForm from '@/components/AgentForm';
 
 export default function AgentDetailPage() {
@@ -24,21 +24,50 @@ export default function AgentDetailPage() {
   const handleSubmit = async (agentData: Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!agent) return;
     
-    // TODO: Actualizar en ElevenLabs
+    // El voiceId ahora contiene el Agent ID de ElevenLabs
     const updatedAgent: Agent = {
       ...agentData,
       id: agent.id,
+      elevenLabsAgentId: agentData.voiceId, // Asignar el voiceId como elevenLabsAgentId
       createdAt: agent.createdAt,
       updatedAt: new Date().toISOString(),
     };
     
-    // Guardar actualización local
-    const agents = JSON.parse(localStorage.getItem('followcall_agents') || '[]');
-    const index = agents.findIndex((a: Agent) => a.id === agent.id);
-    if (index >= 0) {
-      agents[index] = updatedAgent;
-      localStorage.setItem('followcall_agents', JSON.stringify(agents));
+    // Actualizar solo system prompt y first message en ElevenLabs
+    // Usar siempre el agente por defecto: agent_2401kdkas1a9evba5w8tezpfesvf
+    const defaultAgentId = 'agent_2401kdkas1a9evba5w8tezpfesvf';
+    
+    try {
+      const updatePayload: any = {
+        agentId: defaultAgentId,
+        systemPrompt: updatedAgent.systemPrompt,
+      };
+      
+      // Incluir firstMessage si existe
+      if (updatedAgent.firstMessage) {
+        updatePayload.firstMessage = updatedAgent.firstMessage;
+      }
+      
+      const updateResponse = await fetch('/api/agents/update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatePayload),
+      });
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json().catch(() => ({ error: 'Error desconocido' }));
+        console.error('Error updating agent in ElevenLabs:', errorData);
+        // Continuar guardando localmente aunque falle la actualización en ElevenLabs
+      } else {
+        console.log('✅ Agent system prompt and first message updated successfully in ElevenLabs');
+      }
+    } catch (error) {
+      console.error('Error updating agent in ElevenLabs:', error);
+      // Continuar guardando localmente aunque falle la actualización en ElevenLabs
     }
+    
+    // Guardar actualización local usando saveAgent para mantener consistencia
+    saveAgent(updatedAgent);
     
     setAgent(updatedAgent);
     router.push('/');
