@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import AgentForm from '@/components/AgentForm';
-import { createAgent } from '@/lib/elevenlabs/agent';
 import { saveAgent, generateId } from '@/lib/storage';
 import { Agent } from '@/types/agent';
 
@@ -14,8 +13,19 @@ export default function NewAgentPage() {
   const handleSubmit = async (agentData: Omit<Agent, 'id' | 'createdAt' | 'updatedAt'>) => {
     setLoading(true);
     try {
-      // Crear agente en ElevenLabs
-      const agent = await createAgent(agentData);
+      // Crear agente en ElevenLabs a través de API Route (servidor)
+      const response = await fetch('/api/agents/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(agentData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || 'Error al crear agente');
+      }
+
+      const agent: Agent = await response.json();
       
       // Guardar en localStorage
       saveAgent(agent);
@@ -53,4 +63,5 @@ export default function NewAgentPage() {
     </div>
   );
 }
+
 

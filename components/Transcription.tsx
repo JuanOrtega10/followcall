@@ -18,3 +18,4 @@ export default function Transcription({ transcript, isVisible }: TranscriptionPr
   );
 }
 
+

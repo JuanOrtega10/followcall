@@ -12,8 +12,8 @@ interface AgentFormProps {
 }
 
 export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps) {
-  const [name, setName] = useState(agent?.name || '');
-  const [objective, setObjective] = useState(agent?.objective || '');
+  const [name, setName] = useState(agent?.name || 'Asistente de consultorio');
+  const [objective, setObjective] = useState(agent?.objective || 'Quiero llamar a mis pacientes para saber como va su tratamiento');
   const [systemPrompt, setSystemPrompt] = useState(agent?.systemPrompt || '');
   const [voiceId, setVoiceId] = useState(agent?.voiceId || '');
   const [dataSchema, setDataSchema] = useState<DataSchema>(agent?.dataSchema || { fields: [] });
@@ -157,4 +157,5 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
     </form>
   );
 }
+
 
