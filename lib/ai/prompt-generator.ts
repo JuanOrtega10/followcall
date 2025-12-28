@@ -49,12 +49,12 @@ También crea 3-4 campos de datos que el agente debe recolectar. Cada campo:
 - Descripción corta (1 línea)
 
 El system prompt debe incluir naturalmente qué datos debe recolectar. Por ejemplo:
-"Llama a tus pacientes para preguntar cómo va su tratamiento. Asegúrate de obtener su nombre, si han notado mejoras, la frecuencia de síntomas y cualquier comentario adicional."
+"Realiza llamadas de seguimiento para recopilar información. Asegúrate de obtener el nombre del contacto, su nivel de satisfacción, cualquier feedback adicional y comentarios relevantes."
 
 Ejemplo de campos:
-- nombrePaciente (string): Nombre del paciente
-- mejoraNotada (boolean): Si notó mejoras
-- frecuenciaSintomas (number): Veces por semana con síntomas
+- nombreContacto (string): Nombre del contacto
+- nivelSatisfaccion (number): Nivel de satisfacción (1-10)
+- feedback (string): Comentarios adicionales
 
 Mantén TODO simple y directo. El system prompt debe mencionar los datos a recolectar de forma natural.`,
   });

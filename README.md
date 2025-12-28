@@ -1,6 +1,6 @@
 # Follow Call
 
-Sistema para crear agentes de ElevenLabs que automatizan las llamadas de seguimiento. Por ejemplo, un médico puede crear un agente para saber cómo reciben sus pacientes el tratamiento, si se han tomado los medicamentos, qué tal les pareció la atención, etc.
+Sistema para crear agentes de ElevenLabs que automatizan las llamadas de seguimiento. Permite crear agentes conversacionales de voz para cualquier tipo de seguimiento: atención al cliente, encuestas, verificación de servicios, recopilación de información, etc.
 
 ## Características
 
@@ -29,6 +29,8 @@ npm install
 
 ### 2. Configurar variables de entorno
 
+#### Desarrollo Local
+
 Copia `.env.example` a `.env.local` y completa con tus credenciales:
 
 ```bash
@@ -42,6 +44,19 @@ ELEVENLABS_API_KEY=tu_api_key_aqui
 OPENAI_API_KEY=tu_api_key_aqui
 # O ANTHROPIC_API_KEY=tu_api_key_aqui
 ```
+
+#### Producción (Vercel)
+
+1. Ve a tu proyecto en [Vercel Dashboard](https://vercel.com/dashboard)
+2. Navega a **Settings** → **Environment Variables**
+3. Agrega las siguientes variables de entorno:
+   - `ELEVENLABS_API_KEY` = tu API key de ElevenLabs
+   - `OPENAI_API_KEY` = tu API key de OpenAI (o `ANTHROPIC_API_KEY` si usas Anthropic)
+4. Asegúrate de seleccionar los entornos correctos (Production, Preview, Development)
+5. Haz clic en **Save**
+6. Redespliega tu aplicación para que los cambios surtan efecto
+
+**⚠️ Importante:** La API key de ElevenLabs debe estar configurada en Vercel para que las llamadas funcionen en producción. El código obtiene la API key del servidor a través de una API route segura.
 
 ### 3. Obtener API Keys
 
@@ -69,7 +84,7 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
 1. Ve a la página principal y haz clic en "Nuevo Agente"
 2. Ingresa el nombre del agente
-3. Define el objetivo (ej: "Quiero llamar a mis pacientes para saber cómo va su tratamiento")
+3. Define el objetivo (ej: "Quiero realizar llamadas de seguimiento para recopilar información sobre la satisfacción de los clientes")
 4. Haz clic en "Generar System Prompt" - esto generará automáticamente:
    - Un system prompt estructurado para ElevenLabs
    - Un schema de datos que define qué información recolectar

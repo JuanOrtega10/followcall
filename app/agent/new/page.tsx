@@ -44,18 +44,18 @@ export default function NewAgentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-blue-950 to-indigo-900 p-8">
+    <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Crear Nuevo Agente</h1>
-          <p className="text-gray-300">Configura un agente para automatizar llamadas de seguimiento</p>
+          <h1 className="text-4xl font-semibold text-gray-900 mb-2">Crear Nuevo Agente</h1>
+          <p className="text-gray-600">Configura un agente para automatizar llamadas de seguimiento</p>
         </div>
 
-        <div className="bg-gray-800/50 rounded-lg p-8 border border-gray-700">
+        <div className="bg-white rounded-lg p-8 border border-gray-200 shadow-sm">
           {error && (
-            <div className="mb-6 p-4 bg-red-900/50 border border-red-700 rounded-lg">
-              <p className="text-red-200 font-medium mb-2">Error al crear agente</p>
-              <p className="text-red-300 text-sm">{error}</p>
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 font-medium mb-2">Error al crear agente</p>
+              <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
           <AgentForm onSubmit={handleSubmit} />

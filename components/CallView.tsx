@@ -21,35 +21,22 @@ function formatTime(seconds: number): string {
 export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpdate }: CallViewProps) {
   const { 
     isConnected, 
+    isConnecting,
     transcript, 
     duration, 
     connect, 
     disconnect,
     micMuted,
     setMicMuted,
-    error 
+    error,
+    apiKeyReady,
+    audioLevel
   } = useRealtimeAgent(elevenLabsAgentId);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
-  const hasConnectedRef = useRef(false);
   const isEndingRef = useRef(false);
 
-  useEffect(() => {
-    if (!elevenLabsAgentId || hasConnectedRef.current || isEndingRef.current) {
-      return;
-    }
-
-    // Solo conectar una vez cuando el componente se monta
-    hasConnectedRef.current = true;
-    connect();
-
-    return () => {
-      // Cleanup: desconectar cuando el componente se desmonta
-      if (!isEndingRef.current) {
-        disconnect();
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elevenLabsAgentId]); // Remover connect y disconnect de las dependencias para evitar reconexiones
+  // El hook ahora maneja la conexión automáticamente cuando la API key está lista
+  // No necesitamos conectar manualmente aquí
 
   useEffect(() => {
     if (transcript && onTranscriptUpdate) {
@@ -92,24 +79,24 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-blue-950 to-indigo-900 flex flex-col">
+    <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
-      <div className="flex justify-between items-center p-6">
+      <div className="flex justify-between items-center p-6 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-            <div className="w-4 h-4 bg-indigo-600 rounded-full"></div>
+          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+            <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
           </div>
-          <h1 className="text-2xl font-bold text-white">FOLLOWCALL</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">FOLLOWCALL</h1>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {isConnected && (
             <>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-white font-medium">Live</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-full border border-gray-200">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span className="text-gray-700 text-sm font-medium">Live</span>
               </div>
-              <span className="text-white font-mono text-lg">
+              <span className="text-gray-900 font-mono text-lg font-medium">
                 {formatTime(duration)}
               </span>
             </>
@@ -120,10 +107,47 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 pb-20">
         {/* Welcome Message */}
-        <div className="bg-gray-800 rounded-xl p-8 mb-8 max-w-md text-center">
-          <p className="text-white text-lg">
-            {error ? `Error: ${error}` : isConnected ? 'Hello! Welcome to your interview' : 'Conectando...'}
-          </p>
+        <div className="bg-white rounded-lg p-8 mb-8 max-w-md text-center border border-gray-200 shadow-sm">
+          {error ? (
+            <div className="text-red-600">
+              <p className="text-lg font-semibold mb-2">⚠️ Error</p>
+              <p className="text-sm text-gray-600">{error}</p>
+            </div>
+          ) : !apiKeyReady ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-blue-500"></div>
+              <p className="text-gray-900 text-lg font-medium">Cargando configuración...</p>
+            </div>
+          ) : isConnecting ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-blue-500"></div>
+              <p className="text-gray-900 text-lg font-medium">Conectando...</p>
+              <p className="text-gray-500 text-sm">Solicitando permisos de micrófono</p>
+            </div>
+          ) : isConnected ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <p className="text-gray-900 text-lg font-semibold">Conectado</p>
+              </div>
+              <p className="text-gray-600">Hola! Bienvenido a tu llamada</p>
+              {audioLevel > 0 && !micMuted && (
+                <div className="flex items-center gap-1 mt-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-1 rounded-full transition-all ${
+                        audioLevel > i * 20 ? 'bg-blue-500' : 'bg-gray-200'
+                      }`}
+                      style={{ height: `${(i + 1) * 4}px` }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-gray-900 text-lg font-medium">Preparando conexión...</p>
+          )}
         </div>
 
         {/* Subtitle Toggle */}
@@ -141,7 +165,7 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
       </div>
 
       {/* Footer Controls */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-indigo-950/95 to-transparent">
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200">
         <CallControls 
           onEndCall={handleEndCall}
           isMuted={micMuted}

@@ -51,13 +51,13 @@ export default function PromptGenerator({ objective, onGenerated }: PromptGenera
       <button
         onClick={generatePrompt}
         disabled={loading || !objective.trim()}
-        className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+        className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
       >
         {loading ? 'Generando...' : 'Generar System Prompt'}
       </button>
 
       {error && (
-        <div className="p-4 bg-red-900/50 border border-red-700 rounded-lg text-red-200">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
       )}
@@ -65,31 +65,31 @@ export default function PromptGenerator({ objective, onGenerated }: PromptGenera
       {systemPrompt && (
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               System Prompt Generado:
             </label>
             <textarea
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
-              className="w-full p-4 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-purple-500 focus:outline-none min-h-[200px]"
+              className="w-full p-4 bg-white text-gray-900 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[200px] font-mono text-sm"
               placeholder="System prompt aparecerá aquí..."
             />
           </div>
 
           {dataSchema && (
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Datos a Recolectar:
               </label>
-              <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <ul className="space-y-2">
                   {dataSchema.fields.map((field, index) => (
-                    <li key={index} className="text-sm text-gray-300">
-                      <span className="font-medium text-purple-400">{field.name}</span>
+                    <li key={index} className="text-sm text-gray-700">
+                      <span className="font-medium text-blue-600">{field.name}</span>
                       {' '}({field.type})
-                      {field.required && <span className="text-red-400 ml-2">*</span>}
+                      {field.required && <span className="text-red-500 ml-2">*</span>}
                       {' - '}
-                      <span className="text-gray-400">{field.description}</span>
+                      <span className="text-gray-600">{field.description}</span>
                     </li>
                   ))}
                 </ul>

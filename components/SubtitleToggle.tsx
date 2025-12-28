@@ -9,7 +9,11 @@ export default function SubtitleToggle({ enabled, onToggle }: SubtitleToggleProp
   return (
     <button
       onClick={() => onToggle(!enabled)}
-      className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+      className={`px-6 py-2.5 rounded-lg font-medium transition-colors border ${
+        enabled
+          ? 'bg-blue-500 hover:bg-blue-600 text-white border-blue-500'
+          : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
+      }`}
     >
       Subtitles: {enabled ? 'ON' : 'OFF'}
     </button>
