@@ -29,9 +29,17 @@ export default function AgentDetailPage() {
       ...agentData,
       id: agent.id,
       elevenLabsAgentId: agentData.voiceId, // Asignar el voiceId como elevenLabsAgentId
+      dataSchema: agentData.dataSchema || { fields: [] }, // Asegurar que dataSchema se guarde
       createdAt: agent.createdAt,
       updatedAt: new Date().toISOString(),
     };
+    
+    console.log('Saving agent with data:', {
+      name: updatedAgent.name,
+      systemPrompt: updatedAgent.systemPrompt?.substring(0, 50) + '...',
+      firstMessage: updatedAgent.firstMessage,
+      dataSchemaFields: updatedAgent.dataSchema?.fields?.length || 0,
+    });
     
     // Actualizar solo system prompt y first message en ElevenLabs
     // Usar siempre el agente por defecto: agent_2401kdkas1a9evba5w8tezpfesvf

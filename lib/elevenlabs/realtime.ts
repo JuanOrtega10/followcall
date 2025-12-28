@@ -22,6 +22,7 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
   const transcriptRef = useRef<string>('');
   const connectingRef = useRef<boolean>(false);
   const shouldDisconnectRef = useRef<boolean>(false);
+  const activeStreamRef = useRef<MediaStream | null>(null);
 
   const conversation = useConversation({
     micMuted,
@@ -63,6 +64,15 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
         intervalRef.current = null;
       }
       startTimeRef.current = null;
+      
+      // Limpiar el stream guardado cuando se desconecta
+      if (activeStreamRef.current) {
+        activeStreamRef.current.getTracks().forEach(track => {
+          track.stop();
+          console.log('Stopped track in onDisconnect:', track.kind);
+        });
+        activeStreamRef.current = null;
+      }
     },
     onStatusChange: (status) => {
       console.log('Status changed:', status);
@@ -118,8 +128,9 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
       console.log('Requesting microphone permissions...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       console.log('Microphone permission granted');
-      // Detener el stream inmediatamente, el hook lo manejará
-      stream.getTracks().forEach(track => track.stop());
+      // Guardar referencia al stream para poder detenerlo después
+      activeStreamRef.current = stream;
+      // NO detener el stream aquí - el hook lo necesita activo
 
       // Iniciar sesión con el agente
       console.log('Starting session with agent:', elevenLabsAgentId);
@@ -152,27 +163,61 @@ export function useRealtimeAgent(elevenLabsAgentId: string | null | undefined) {
     // Marcar que se debe desconectar para prevenir reconexiones
     shouldDisconnectRef.current = true;
     
-    try {
-      // Esperar a que la sesión termine correctamente
-      await conversation.endSession();
-      console.log('Session ended successfully');
-    } catch (error) {
-      console.error('Error ending session:', error);
-    }
+    // Limpiar estado inmediatamente
+    setIsConnected(false);
+    connectingRef.current = false;
     
-    // Limpiar intervalos y estado
+    // Limpiar intervalos
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-
+    
     startTimeRef.current = null;
     transcriptRef.current = '';
     setTranscript('');
     setDuration(0);
     setError(null);
-    setIsConnected(false);
-    connectingRef.current = false;
+    
+    // Detener TODOS los tracks de audio activos ANTES de llamar a endSession
+    // Esto asegura que el micrófono se detenga inmediatamente
+    try {
+      // Detener el stream que guardamos durante la conexión
+      if (activeStreamRef.current) {
+        activeStreamRef.current.getTracks().forEach(track => {
+          track.stop();
+          console.log('Stopped audio track from active stream:', track.kind, track.label);
+        });
+        activeStreamRef.current = null;
+      }
+      
+      // También intentar detener cualquier otro stream activo
+      // Esto es una medida de seguridad adicional
+      const allTracks = document.querySelectorAll('audio, video');
+      allTracks.forEach(element => {
+        const mediaElement = element as HTMLMediaElement;
+        if (mediaElement.srcObject) {
+          const stream = mediaElement.srcObject as MediaStream;
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.log('Stopped track from media element:', track.kind);
+          });
+          mediaElement.srcObject = null;
+        }
+        mediaElement.pause();
+      });
+    } catch (err) {
+      console.log('Error stopping audio tracks:', err);
+    }
+    
+    try {
+      // Llamar a endSession() - según la documentación de ElevenLabs, esto cierra la sesión
+      // Esperamos a que termine para asegurar que la conexión se cierre completamente
+      await conversation.endSession();
+      console.log('Session ended successfully');
+    } catch (error) {
+      console.error('Error ending session:', error);
+    }
   }, [conversation]);
 
   // Monitorear el estado de la conversación directamente usando un intervalo

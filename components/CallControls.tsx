@@ -45,7 +45,7 @@ export default function CallControls({ onEndCall, isMuted = false, onToggleMute 
             <span>Ending...</span>
           </>
         ) : (
-          'End Interview'
+          'End Call'
         )}
       </button>
     </div>

@@ -53,6 +53,7 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
 
   useEffect(() => {
     if (transcript && onTranscriptUpdate) {
+      console.log('📝 [CALL VIEW] Transcript updated, length:', transcript.length);
       onTranscriptUpdate(transcript);
     }
   }, [transcript, onTranscriptUpdate]);
@@ -64,18 +65,27 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
     }
     
     isEndingRef.current = true;
-    console.log('End call button clicked');
+    console.log('🔴 [CALL VIEW] End call button clicked');
+    console.log('📝 [CALL VIEW] Current transcript length:', transcript.length);
+    console.log('📝 [CALL VIEW] Current transcript preview:', transcript.substring(0, 200));
     
     try {
-      // Desconectar primero y esperar a que termine completamente
-      await disconnect();
-      console.log('Disconnected successfully, redirecting...');
-      // Esperar un momento adicional para asegurar que todo se limpie
-      await new Promise(resolve => setTimeout(resolve, 500));
-      // Luego ejecutar el callback
+      // Asegurar que el transcript final se envíe antes de desconectar
+      if (transcript && onTranscriptUpdate) {
+        console.log('📝 [CALL VIEW] Sending final transcript update before ending call');
+        onTranscriptUpdate(transcript);
+        // Esperar un momento para que se actualice el estado
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // Desconectar - no esperar, dejar que se ejecute en segundo plano
+      disconnect().catch(err => console.error('Error during disconnect:', err));
+      
+      // Redirigir - el callback manejará el parsing
+      console.log('🔄 [CALL VIEW] Calling onEndCall callback');
       onEndCall();
     } catch (error) {
-      console.error('Error ending call:', error);
+      console.error('❌ [CALL VIEW] Error ending call:', error);
       // Aún así ejecutar el callback para redirigir
       onEndCall();
     }

@@ -27,27 +27,78 @@ export interface PromptGenerationResult {
 }
 
 export async function generatePromptAndSchema(objective: string): Promise<PromptGenerationResult> {
+  console.log('🤖 [PROMPT GEN] Generating prompt for objective:', objective);
+  
   const { object } = await generateObject({
     model: getAIProvider(),
     schema: promptSchema,
-    prompt: `Convierte este objetivo en un system prompt para un agente de ElevenLabs y define qué datos debe recolectar.
+    prompt: `Crea un system prompt SIMPLE y CORTO para un agente de voz basado en:
 
-Objetivo: ${objective}
+"${objective}"
 
-Genera:
-1. Un system prompt estructurado con secciones claras:
-   - Personalidad: Describe cómo debe comportarse el agente
-   - Objetivo: Qué debe lograr en la conversación
-   - Instrucciones: Pasos específicos a seguir
-   - Guardrails: Límites y restricciones
+REGLAS:
+- Máximo 4-5 oraciones
+- Lenguaje natural y conversacional
+- En español
+- Sin formato complejo, solo texto simple
+- DEBE mencionar qué información debe recolectar durante la conversación
 
-2. Un schema de datos que defina qué información debe extraerse de la conversación. 
-   Basa los campos en el objetivo proporcionado. Por ejemplo, si es seguimiento médico, 
-   incluye campos como adherencia_medicamentos, sintomas, satisfaccion, etc.
+También crea 3-4 campos de datos que el agente debe recolectar. Cada campo:
+- Nombre en camelCase (ej: nombrePaciente, frecuenciaSintomas)
+- Tipo: string, number, boolean, o array
+- Descripción corta (1 línea)
 
-El system prompt debe ser en español y seguir las mejores prácticas de ElevenLabs para agentes conversacionales.`,
+El system prompt debe incluir naturalmente qué datos debe recolectar. Por ejemplo:
+"Llama a tus pacientes para preguntar cómo va su tratamiento. Asegúrate de obtener su nombre, si han notado mejoras, la frecuencia de síntomas y cualquier comentario adicional."
+
+Ejemplo de campos:
+- nombrePaciente (string): Nombre del paciente
+- mejoraNotada (boolean): Si notó mejoras
+- frecuenciaSintomas (number): Veces por semana con síntomas
+
+Mantén TODO simple y directo. El system prompt debe mencionar los datos a recolectar de forma natural.`,
   });
 
-  return object;
+  console.log('✅ [PROMPT GEN] Prompt generated successfully');
+  console.log('📝 [PROMPT GEN] System prompt length:', object.systemPrompt.length);
+  console.log('📝 [PROMPT GEN] System prompt preview:', object.systemPrompt.substring(0, 200) + '...');
+  console.log('📋 [PROMPT GEN] Data schema fields:', object.dataSchema.fields.length);
+
+  // Mejorar el system prompt para incluir explícitamente los campos a recolectar de forma natural
+  const fieldsDescriptions = object.dataSchema.fields.map(f => {
+    // Convertir la descripción a lenguaje natural
+    return f.description.toLowerCase().replace(/\.$/, '');
+  });
+
+  // Crear una lista natural de los datos a recolectar
+  let dataToCollect = '';
+  if (fieldsDescriptions.length > 0) {
+    if (fieldsDescriptions.length === 1) {
+      dataToCollect = fieldsDescriptions[0];
+    } else if (fieldsDescriptions.length === 2) {
+      dataToCollect = `${fieldsDescriptions[0]} y ${fieldsDescriptions[1]}`;
+    } else {
+      const lastField = fieldsDescriptions.pop();
+      dataToCollect = `${fieldsDescriptions.join(', ')}, y ${lastField}`;
+    }
+  }
+
+  // Verificar si el system prompt ya menciona los datos, si no, agregarlos
+  const promptLower = object.systemPrompt.toLowerCase();
+  const needsDataMention = !fieldsDescriptions.some(desc => promptLower.includes(desc.split(' ')[0]));
+
+  let enhancedSystemPrompt = object.systemPrompt;
+  if (needsDataMention && dataToCollect) {
+    // Agregar de forma natural al final
+    enhancedSystemPrompt = `${object.systemPrompt} Asegúrate de obtener información sobre: ${dataToCollect}.`;
+  }
+
+  console.log('📝 [PROMPT GEN] Enhanced system prompt with data fields');
+  console.log('📝 [PROMPT GEN] Data to collect:', dataToCollect);
+
+  return {
+    ...object,
+    systemPrompt: enhancedSystemPrompt
+  };
 }
 

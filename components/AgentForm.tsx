@@ -15,12 +15,24 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
   const [name, setName] = useState(agent?.name || 'Asistente de consultorio');
   const [objective, setObjective] = useState(agent?.objective || 'Quiero llamar a mis pacientes para saber como va su tratamiento');
   const [systemPrompt, setSystemPrompt] = useState(agent?.systemPrompt || '');
+  const [firstMessage, setFirstMessage] = useState(agent?.firstMessage || '');
   // Usar elevenLabsAgentId si existe, sino usar voiceId (para compatibilidad)
   const [voiceId, setVoiceId] = useState(agent?.elevenLabsAgentId || agent?.voiceId || '');
   const [dataSchema, setDataSchema] = useState<DataSchema>(agent?.dataSchema || { fields: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mockData, setMockData] = useState<any>(null);
+
+  useEffect(() => {
+    if (agent) {
+      setName(agent.name || '');
+      setObjective(agent.objective || '');
+      setSystemPrompt(agent.systemPrompt || '');
+      setFirstMessage(agent.firstMessage || '');
+      setVoiceId(agent.elevenLabsAgentId || agent.voiceId || '');
+      setDataSchema(agent.dataSchema || { fields: [] });
+    }
+  }, [agent]);
 
   const handlePromptGenerated = (prompt: string, schema: DataSchema) => {
     setSystemPrompt(prompt);
@@ -67,6 +79,7 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
         name,
         objective,
         systemPrompt,
+        firstMessage,
         voiceId, // Este campo ahora contiene el Agent ID de ElevenLabs
         language: 'es',
         dataSchema,
@@ -113,6 +126,52 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
         </label>
         <PromptGenerator objective={objective} onGenerated={handlePromptGenerated} />
       </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          System Prompt
+        </label>
+        <textarea
+          value={systemPrompt}
+          onChange={(e) => setSystemPrompt(e.target.value)}
+          className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-purple-500 focus:outline-none min-h-[150px]"
+          placeholder="El prompt del sistema para el agente..."
+          required
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-2">
+          Primer Mensaje (First Message)
+        </label>
+        <textarea
+          value={firstMessage}
+          onChange={(e) => setFirstMessage(e.target.value)}
+          className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-purple-500 focus:outline-none min-h-[80px]"
+          placeholder="El primer mensaje que dirá el agente..."
+        />
+      </div>
+
+      {dataSchema && dataSchema.fields && dataSchema.fields.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Datos a Recolectar:
+          </label>
+          <div className="p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <ul className="space-y-2">
+              {dataSchema.fields.map((field, index) => (
+                <li key={index} className="text-sm text-gray-300">
+                  <span className="font-medium text-purple-400">{field.name}</span>
+                  {' '}({field.type})
+                  {field.required && <span className="text-red-400 ml-2">*</span>}
+                  {' - '}
+                  <span className="text-gray-400">{field.description}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-300 mb-2">
