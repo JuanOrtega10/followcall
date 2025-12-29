@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Agent, DataSchema } from '@/types/agent';
 import PromptGenerator from './PromptGenerator';
 import { generateId } from '@/lib/storage';
+import { AlertCircle, ExternalLink, Loader2, Save, X } from 'lucide-react';
 
 interface AgentFormProps {
   agent?: Agent;
@@ -16,7 +17,6 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
   const [objective, setObjective] = useState(agent?.objective || 'Quiero realizar llamadas de seguimiento para recopilar información');
   const [systemPrompt, setSystemPrompt] = useState(agent?.systemPrompt || '');
   const [firstMessage, setFirstMessage] = useState(agent?.firstMessage || '');
-  // Usar elevenLabsAgentId si existe, sino usar voiceId (para compatibilidad)
   const [voiceId, setVoiceId] = useState(agent?.elevenLabsAgentId || agent?.voiceId || '');
   const [dataSchema, setDataSchema] = useState<DataSchema>(agent?.dataSchema || { fields: [] });
   const [loading, setLoading] = useState(false);
@@ -80,7 +80,7 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
         objective,
         systemPrompt,
         firstMessage,
-        voiceId, // Este campo ahora contiene el Agent ID de ElevenLabs
+        voiceId,
         language: 'es',
         dataSchema,
       });
@@ -91,81 +91,96 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
     }
   };
 
+  // Estilos comunes para inputs
+  const inputStyles = "w-full p-3.5 bg-[#0A332A]/50 text-white rounded-xl border border-[#5EEAD4]/30 focus:border-[#5EEAD4] focus:ring-1 focus:ring-[#5EEAD4]/50 focus:outline-none transition-all duration-300 placeholder:text-[#5EEAD4]/30";
+  const labelStyles = "block text-sm font-medium text-[#A7F3D0] mb-2";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Nombre del Agente */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className={labelStyles}>
           Nombre del Agente
         </label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full p-3 bg-white text-gray-900 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+          className={inputStyles}
           placeholder="Ej: Agente de Seguimiento"
           required
         />
       </div>
 
+      {/* Objetivo */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className={labelStyles}>
           Objetivo
         </label>
         <textarea
           value={objective}
           onChange={(e) => setObjective(e.target.value)}
-          className="w-full p-3 bg-white text-gray-900 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[100px]"
+          className={`${inputStyles} min-h-[100px] resize-none`}
           placeholder="Ej: Quiero realizar llamadas de seguimiento para recopilar información sobre el estado de los clientes"
           required
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+      {/* Generador de Prompt */}
+      <div className="p-4 bg-[#0A332A]/30 rounded-xl border border-[#5EEAD4]/20">
+        <label className={`${labelStyles} mb-3`}>
           Generar System Prompt y Schema
         </label>
         <PromptGenerator objective={objective} onGenerated={handlePromptGenerated} />
       </div>
 
+      {/* System Prompt */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className={labelStyles}>
           System Prompt
         </label>
         <textarea
           value={systemPrompt}
           onChange={(e) => setSystemPrompt(e.target.value)}
-          className="w-full p-3 bg-white text-gray-900 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[150px] font-mono text-sm"
+          className={`${inputStyles} min-h-[150px] font-mono text-sm resize-none`}
           placeholder="El prompt del sistema para el agente..."
           required
         />
       </div>
 
+      {/* Primer Mensaje */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className={labelStyles}>
           Primer Mensaje (First Message)
         </label>
         <textarea
           value={firstMessage}
           onChange={(e) => setFirstMessage(e.target.value)}
-          className="w-full p-3 bg-white text-gray-900 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[80px]"
+          className={`${inputStyles} min-h-[80px] resize-none`}
           placeholder="El primer mensaje que dirá el agente..."
         />
       </div>
 
+      {/* Datos a Recolectar */}
       {dataSchema && dataSchema.fields && dataSchema.fields.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className={labelStyles}>
             Datos a Recolectar:
           </label>
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <ul className="space-y-2">
+          <div className="p-4 bg-[#0A332A]/50 rounded-xl border border-[#5EEAD4]/20">
+            <ul className="space-y-3">
               {dataSchema.fields.map((field, index) => (
-                <li key={index} className="text-sm text-gray-700">
-                  <span className="font-medium text-blue-600">{field.name}</span>
-                  {' '}({field.type})
-                  {field.required && <span className="text-red-500 ml-2">*</span>}
-                  {' - '}
-                  <span className="text-gray-600">{field.description}</span>
+                <li key={index} className="text-sm flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-[#5EEAD4]">{field.name}</span>
+                  <span className="px-2 py-0.5 bg-[#5EEAD4]/10 text-[#A7F3D0] rounded-md text-xs border border-[#5EEAD4]/20">
+                    {field.type}
+                  </span>
+                  {field.required && (
+                    <span className="px-2 py-0.5 bg-red-500/10 text-red-400 rounded-md text-xs border border-red-500/20">
+                      requerido
+                    </span>
+                  )}
+                  <span className="text-[#A7F3D0]/60 text-xs">— {field.description}</span>
                 </li>
               ))}
             </ul>
@@ -173,49 +188,77 @@ export default function AgentForm({ agent, onSubmit, onCancel }: AgentFormProps)
         </div>
       )}
 
+      {/* Agent ID */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className={labelStyles}>
           Agent ID (ElevenLabs)
         </label>
         <input
           type="text"
           value={voiceId}
           onChange={(e) => setVoiceId(e.target.value)}
-          className="w-full p-3 bg-white text-gray-900 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-mono text-sm"
+          className={`${inputStyles} font-mono text-sm`}
           placeholder="Pega aquí el Agent ID de ElevenLabs"
           required
         />
-        <p className="text-xs text-gray-500 mt-1">
-          Crea un agente en <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 underline">ElevenLabs Dashboard</a> y copia el Agent ID aquí
+        <p className="text-xs text-[#5EEAD4]/50 mt-2 flex items-center gap-1">
+          Crea un agente en{' '}
+          <a 
+            href="https://elevenlabs.io/app/conversational-ai" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-[#5EEAD4] hover:text-[#A7F3D0] underline underline-offset-2 inline-flex items-center gap-1 transition-colors"
+          >
+            ElevenLabs Dashboard
+            <ExternalLink className="w-3 h-3" />
+          </a>
+          {' '}y copia el Agent ID aquí
         </p>
       </div>
 
-      <div className="flex gap-3">
+      {/* Botones */}
+      <div className="flex flex-col sm:flex-row gap-3 pt-4">
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+          className="group relative px-6 py-3 bg-gradient-to-r from-[#5EEAD4] to-[#A7F3D0] text-[#0F4C3A] rounded-xl font-semibold transition-all duration-300 hover:shadow-[0_0_30px_rgba(94,234,212,0.4)] hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
         >
-          {loading ? 'Guardando...' : agent ? 'Actualizar Agente' : 'Crear Agente'}
+          <span className="flex items-center justify-center gap-2">
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                {agent ? 'Actualizar Agente' : 'Crear Agente'}
+              </>
+            )}
+          </span>
         </button>
+        
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-2.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-lg font-medium transition-colors"
+            className="px-6 py-3 bg-transparent hover:bg-[#5EEAD4]/10 text-[#A7F3D0] border border-[#5EEAD4]/30 hover:border-[#5EEAD4]/50 rounded-xl font-medium transition-all duration-300"
           >
-            Cancelar
+            <span className="flex items-center justify-center gap-2">
+              <X className="w-4 h-4" />
+              Cancelar
+            </span>
           </button>
         )}
       </div>
 
+      {/* Error */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-red-400 text-sm">{error}</p>
         </div>
       )}
     </form>
   );
 }
-
-

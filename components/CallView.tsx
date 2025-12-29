@@ -5,6 +5,7 @@ import { useRealtimeAgent } from '@/lib/elevenlabs/realtime';
 import SubtitleToggle from './SubtitleToggle';
 import CallControls from './CallControls';
 import Transcription from './Transcription';
+import { Phone, Loader2, AlertCircle, Wifi } from 'lucide-react';
 
 interface CallViewProps {
   elevenLabsAgentId: string | null | undefined;
@@ -36,14 +37,9 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
   const isEndingRef = useRef(false);
 
-  // El hook ahora maneja la conexión automáticamente cuando la API key está lista
-  // No necesitamos conectar manualmente aquí
-  
-  // Usar un ref para rastrear el último transcript procesado y evitar actualizaciones infinitas
   const lastTranscriptRef = useRef<string>('');
 
   useEffect(() => {
-    // Solo actualizar si el transcript realmente cambió
     if (transcript && transcript !== lastTranscriptRef.current && onTranscriptUpdate) {
       console.log('📝 [CALL VIEW] Transcript updated, length:', transcript.length);
       lastTranscriptRef.current = transcript;
@@ -63,46 +59,51 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
     console.log('📝 [CALL VIEW] Current transcript preview:', transcript.substring(0, 200));
     
     try {
-      // Asegurar que el transcript final se envíe antes de desconectar
       if (transcript && onTranscriptUpdate) {
         console.log('📝 [CALL VIEW] Sending final transcript update before ending call');
         onTranscriptUpdate(transcript);
-        // Esperar un momento para que se actualice el estado
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      // Desconectar - no esperar, dejar que se ejecute en segundo plano
       disconnect().catch(err => console.error('Error during disconnect:', err));
       
-      // Redirigir - el callback manejará el parsing
       console.log('🔄 [CALL VIEW] Calling onEndCall callback');
       onEndCall();
     } catch (error) {
       console.error('❌ [CALL VIEW] Error ending call:', error);
-      // Aún así ejecutar el callback para redirigir
       onEndCall();
     }
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-[#0F4C3A] via-[#134E4A] to-[#0D3D2E] flex flex-col">
+      {/* Efectos de fondo */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-[#5EEAD4]/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#A7F3D0]/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#5EEAD4]/5 rounded-full blur-3xl"></div>
+      </div>
+
       {/* Header */}
-      <div className="flex justify-between items-center p-6 border-b border-gray-200">
+      <div className="relative z-10 flex justify-between items-center p-6 border-b border-[#5EEAD4]/20 backdrop-blur-sm bg-[#0D3D2E]/30">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-            <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+          <div className="relative">
+            <div className="absolute inset-0 bg-[#5EEAD4]/30 blur-lg rounded-full"></div>
+            <div className="relative w-10 h-10 bg-gradient-to-br from-[#5EEAD4] to-[#A7F3D0] rounded-full flex items-center justify-center">
+              <Phone className="w-5 h-5 text-[#0F4C3A]" />
+            </div>
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900">FOLLOWCALL</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">FOLLOWCALL</h1>
         </div>
         
         <div className="flex items-center gap-4">
           {isConnected && (
             <>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-full border border-gray-200">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-gray-700 text-sm font-medium">Live</span>
+              <div className="flex items-center gap-2 px-4 py-2 bg-[#5EEAD4]/10 rounded-full border border-[#5EEAD4]/30">
+                <div className="w-2 h-2 bg-[#5EEAD4] rounded-full animate-pulse shadow-[0_0_10px_rgba(94,234,212,0.5)]"></div>
+                <span className="text-[#5EEAD4] text-sm font-medium">En vivo</span>
               </div>
-              <span className="text-gray-900 font-mono text-lg font-medium">
+              <span className="text-white font-mono text-xl font-semibold bg-[#0D3D2E]/60 px-4 py-2 rounded-xl border border-[#5EEAD4]/20">
                 {formatTime(duration)}
               </span>
             </>
@@ -111,50 +112,80 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-20">
-        {/* Welcome Message */}
-        <div className="bg-white rounded-lg p-8 mb-8 max-w-md text-center border border-gray-200 shadow-sm">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pb-32">
+        {/* Status Card */}
+        <div className="bg-[#0D3D2E]/60 backdrop-blur-sm rounded-2xl p-8 mb-8 max-w-md w-full text-center border border-[#5EEAD4]/20 shadow-[0_0_60px_rgba(94,234,212,0.05)]">
           {error ? (
-            <div className="text-red-600">
-              <p className="text-lg font-semibold mb-2">⚠️ Error</p>
-              <p className="text-sm text-gray-600">{error}</p>
+            <div className="flex flex-col items-center gap-4">
+              <div className="p-4 bg-red-500/10 rounded-full">
+                <AlertCircle className="w-8 h-8 text-red-400" />
+              </div>
+              <div>
+                <p className="text-red-400 text-lg font-semibold mb-2">Error de conexión</p>
+                <p className="text-[#A7F3D0]/60 text-sm">{error}</p>
+              </div>
             </div>
           ) : !apiKeyReady ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-blue-500"></div>
-              <p className="text-gray-900 text-lg font-medium">Cargando configuración...</p>
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-[#5EEAD4]/20 blur-xl rounded-full animate-pulse"></div>
+                <Loader2 className="w-10 h-10 text-[#5EEAD4] animate-spin relative" />
+              </div>
+              <p className="text-white text-lg font-medium">Cargando configuración...</p>
             </div>
           ) : isConnecting ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-blue-500"></div>
-              <p className="text-gray-900 text-lg font-medium">Conectando...</p>
-              <p className="text-gray-500 text-sm">
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-[#5EEAD4]/20 blur-xl rounded-full animate-pulse"></div>
+                <Loader2 className="w-10 h-10 text-[#5EEAD4] animate-spin relative" />
+              </div>
+              <p className="text-white text-lg font-medium">Conectando...</p>
+              <p className="text-[#A7F3D0]/60 text-sm">
                 {micPermissionGranted ? 'Estableciendo conexión...' : 'Solicitando permisos de micrófono'}
               </p>
             </div>
           ) : isConnected ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <p className="text-gray-900 text-lg font-semibold">Conectado</p>
+            <div className="flex flex-col items-center gap-4">
+              {/* Indicador de conexión */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-[#5EEAD4]/30 blur-xl rounded-full animate-pulse"></div>
+                <div className="relative p-4 bg-gradient-to-br from-[#5EEAD4]/20 to-[#A7F3D0]/10 rounded-full border border-[#5EEAD4]/40">
+                  <Wifi className="w-8 h-8 text-[#5EEAD4]" />
+                </div>
               </div>
-              <p className="text-gray-600">Hola! Bienvenido a tu llamada</p>
+              
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-[#5EEAD4] rounded-full animate-pulse shadow-[0_0_10px_rgba(94,234,212,0.5)]"></div>
+                <p className="text-white text-lg font-semibold">Conectado</p>
+              </div>
+              
+              <p className="text-[#A7F3D0]/70">¡Hola! Bienvenido a tu llamada</p>
+              
+              {/* Indicador de nivel de audio */}
               {audioLevel > 0 && !micMuted && (
-                <div className="flex items-center gap-1 mt-2">
+                <div className="flex items-center gap-1.5 mt-2 p-2 bg-[#5EEAD4]/10 rounded-full">
                   {[...Array(5)].map((_, i) => (
                     <div
                       key={i}
-                      className={`w-1 rounded-full transition-all ${
-                        audioLevel > i * 20 ? 'bg-blue-500' : 'bg-gray-200'
+                      className={`w-1.5 rounded-full transition-all duration-150 ${
+                        audioLevel > i * 20 
+                          ? 'bg-gradient-to-t from-[#5EEAD4] to-[#A7F3D0] shadow-[0_0_5px_rgba(94,234,212,0.5)]' 
+                          : 'bg-[#5EEAD4]/20'
                       }`}
-                      style={{ height: `${(i + 1) * 4}px` }}
+                      style={{ height: `${(i + 1) * 6}px` }}
                     />
                   ))}
                 </div>
               )}
             </div>
           ) : (
-            <p className="text-gray-900 text-lg font-medium">Preparando conexión...</p>
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="absolute inset-0 bg-[#5EEAD4]/20 blur-xl rounded-full animate-pulse"></div>
+                <Loader2 className="w-10 h-10 text-[#5EEAD4] animate-spin relative" />
+              </div>
+              <p className="text-white text-lg font-medium">Preparando conexión...</p>
+            </div>
           )}
         </div>
 
@@ -173,7 +204,7 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
       </div>
 
       {/* Footer Controls */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200">
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-[#0D3D2E]/80 backdrop-blur-md border-t border-[#5EEAD4]/20 z-20">
         <CallControls 
           onEndCall={handleEndCall}
           isMuted={micMuted}
@@ -183,4 +214,3 @@ export default function CallView({ elevenLabsAgentId, onEndCall, onTranscriptUpd
     </div>
   );
 }
-

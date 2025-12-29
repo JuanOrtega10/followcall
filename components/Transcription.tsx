@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { MessageSquare, Bot, User } from 'lucide-react';
 
 interface TranscriptionProps {
   transcript: string;
@@ -10,7 +11,6 @@ interface TranscriptionProps {
 export default function Transcription({ transcript, isVisible }: TranscriptionProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll al final cuando hay nuevo contenido
   useEffect(() => {
     if (scrollRef.current && transcript) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -19,26 +19,31 @@ export default function Transcription({ transcript, isVisible }: TranscriptionPr
 
   if (!isVisible) return null;
 
-  // Parsear el transcript para mostrar mensajes de forma más clara
   const messages = transcript.split('\n\n').filter(msg => msg.trim());
   
   return (
-    <div className="max-w-3xl mx-auto mt-8 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-          <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-          Transcripción en tiempo real
+    <div className="max-w-3xl w-full mx-auto mt-8 p-6 bg-[#0D3D2E]/60 backdrop-blur-sm rounded-2xl border border-[#5EEAD4]/20 shadow-[0_0_40px_rgba(94,234,212,0.05)]">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-lg font-semibold text-white flex items-center gap-3">
+          <div className="p-2 bg-[#5EEAD4]/10 rounded-lg border border-[#5EEAD4]/30">
+            <MessageSquare className="w-4 h-4 text-[#5EEAD4]" />
+          </div>
+          <span>Transcripción en tiempo real</span>
+          <div className="w-2 h-2 bg-[#5EEAD4] rounded-full animate-pulse shadow-[0_0_10px_rgba(94,234,212,0.5)]"></div>
         </h3>
         {transcript && (
-          <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">
+          <span className="text-xs text-[#5EEAD4]/60 bg-[#5EEAD4]/10 px-3 py-1.5 rounded-full border border-[#5EEAD4]/20">
             {messages.length} mensaje{messages.length !== 1 ? 's' : ''}
           </span>
         )}
       </div>
+
+      {/* Messages Container */}
       <div 
         ref={scrollRef}
-        className="text-gray-700 whitespace-pre-wrap max-h-96 overflow-y-auto space-y-3 scroll-smooth"
-        style={{ scrollbarWidth: 'thin' }}
+        className="whitespace-pre-wrap max-h-96 overflow-y-auto space-y-4 scroll-smooth pr-2"
+        style={{ scrollbarWidth: 'thin', scrollbarColor: '#5EEAD4 #0D3D2E' }}
       >
         {messages.length > 0 ? (
           messages.map((message, index) => {
@@ -49,42 +54,54 @@ export default function Transcription({ transcript, isVisible }: TranscriptionPr
             return (
               <div
                 key={index}
-                className={`p-4 rounded-lg border ${
+                className={`p-4 rounded-xl border transition-all duration-300 ${
                   isAgent 
-                    ? 'bg-blue-50 border-blue-200 border-l-4 border-l-blue-500' 
+                    ? 'bg-[#5EEAD4]/10 border-[#5EEAD4]/30 border-l-4 border-l-[#5EEAD4]' 
                     : isUser
-                    ? 'bg-gray-50 border-gray-200 border-l-4 border-l-gray-400'
-                    : 'bg-gray-50 border-gray-200'
+                    ? 'bg-[#0A332A]/50 border-[#5EEAD4]/20 border-l-4 border-l-[#A7F3D0]/50'
+                    : 'bg-[#0A332A]/30 border-[#5EEAD4]/10'
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold ${
+                  {/* Avatar */}
+                  <div className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${
                     isAgent 
-                      ? 'bg-blue-500 text-white' 
+                      ? 'bg-gradient-to-br from-[#5EEAD4] to-[#A7F3D0] text-[#0F4C3A]' 
                       : isUser
-                      ? 'bg-gray-400 text-white'
-                      : 'bg-gray-300 text-gray-600'
+                      ? 'bg-[#5EEAD4]/20 text-[#5EEAD4] border border-[#5EEAD4]/30'
+                      : 'bg-[#5EEAD4]/10 text-[#5EEAD4]/50'
                   }`}>
-                    {isAgent ? 'A' : isUser ? 'U' : '?'}
+                    {isAgent ? (
+                      <Bot className="w-4 h-4" />
+                    ) : isUser ? (
+                      <User className="w-4 h-4" />
+                    ) : (
+                      <span className="text-xs font-bold">?</span>
+                    )}
                   </div>
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-500 mb-1 font-medium">
+                  
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-xs mb-1.5 font-medium ${
+                      isAgent ? 'text-[#5EEAD4]' : isUser ? 'text-[#A7F3D0]/70' : 'text-[#5EEAD4]/50'
+                    }`}>
                       {isAgent ? 'Agente' : isUser ? 'Usuario' : 'Sistema'}
                     </div>
-                    <div className="text-gray-900 leading-relaxed">{content}</div>
+                    <div className="text-white/90 leading-relaxed text-sm">{content}</div>
                   </div>
                 </div>
               </div>
             );
           })
         ) : (
-          <div className="text-center py-8 text-gray-400">
-            <div className="animate-pulse">Esperando transcripción...</div>
+          <div className="text-center py-12">
+            <div className="inline-block p-4 bg-[#5EEAD4]/10 rounded-full mb-4">
+              <MessageSquare className="w-8 h-8 text-[#5EEAD4]/40" />
+            </div>
+            <div className="text-[#A7F3D0]/50 animate-pulse">Esperando transcripción...</div>
           </div>
         )}
       </div>
     </div>
   );
 }
-
-

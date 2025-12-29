@@ -2,11 +2,13 @@
 
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { Agent } from '@/types/agent';
 import { Call } from '@/types/call';
 import { getAgent } from '@/lib/storage';
 import { saveCall, generateId } from '@/lib/storage';
 import CallView from '@/components/CallView';
+import { Loader2, AlertCircle, ArrowLeft, Phone, Settings } from 'lucide-react';
 
 export default function CallPage() {
   const params = useParams();
@@ -14,7 +16,6 @@ export default function CallPage() {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [call, setCall] = useState<Call | null>(null);
   const [loading, setLoading] = useState(true);
-  // Guardar referencia al transcript más reciente para asegurar que se capture al terminar
   const latestTranscriptRef = useRef<string>('');
 
   useEffect(() => {
@@ -22,7 +23,6 @@ export default function CallPage() {
       if (params.agentId) {
         const foundAgent = getAgent(params.agentId as string);
         if (!foundAgent) {
-          // Esperar un poco antes de redirigir para mostrar el mensaje
           setTimeout(() => {
             router.push('/');
           }, 2000);
@@ -30,10 +30,8 @@ export default function CallPage() {
           return;
         }
 
-        // Actualizar solo system prompt y first message en ElevenLabs antes de iniciar la llamada
-        // Usar siempre el agente por defecto: agent_2401kdkas1a9evba5w8tezpfesvf
         const defaultAgentId = 'agent_2401kdkas1a9evba5w8tezpfesvf';
-        const targetAgentId = defaultAgentId; // Siempre usar el agente por defecto
+        const targetAgentId = defaultAgentId;
         
         if (foundAgent.systemPrompt) {
           try {
@@ -48,7 +46,6 @@ export default function CallPage() {
               systemPrompt: foundAgent.systemPrompt,
             };
             
-            // Incluir firstMessage si existe
             if (foundAgent.firstMessage) {
               updatePayload.firstMessage = foundAgent.firstMessage;
             }
@@ -64,20 +61,16 @@ export default function CallPage() {
             } else {
               const errorData = await updateResponse.json().catch(() => ({ error: 'Error desconocido' }));
               console.error('❌ Error updating agent:', errorData);
-              // Continuar con la llamada aunque falle la actualización
             }
           } catch (error) {
             console.error('❌ Error updating agent:', error);
-            // Continuar con la llamada aunque falle la actualización
           }
         }
         
-        // Usar siempre el agente por defecto para la llamada
         foundAgent.elevenLabsAgentId = targetAgentId;
 
         setAgent(foundAgent);
         
-        // Crear nueva llamada
         const newCall: Call = {
           id: generateId(),
           agentId: foundAgent.id,
@@ -95,21 +88,15 @@ export default function CallPage() {
     initializeCall();
   }, [params.agentId, router]);
 
-  // Usar un ref para mantener la referencia al call actual sin causar recreaciones del callback
   const callRef = useRef<Call | null>(null);
   
-  // Actualizar el ref cuando call cambie
   useEffect(() => {
     callRef.current = call;
   }, [call]);
 
-  // Memoizar handleTranscriptUpdate antes de cualquier return condicional
-  // Usar useRef para call en lugar de dependencia para evitar recreaciones
   const handleTranscriptUpdate = useCallback((transcript: string) => {
-    // Actualizar el ref inmediatamente para tener siempre la versión más reciente
     latestTranscriptRef.current = transcript;
     
-    // Usar callRef.current en lugar de call directamente para evitar dependencias
     const currentCall = callRef.current;
     if (currentCall) {
       console.log('📝 [TRANSCRIPT UPDATE] Updating call transcript, length:', transcript.length);
@@ -122,7 +109,7 @@ export default function CallPage() {
       saveCall(updatedCall);
       console.log('✅ [TRANSCRIPT UPDATE] Call saved with updated transcript');
     }
-  }, []); // Sin dependencias - usar refs para valores que cambian
+  }, []);
 
   const handleEndCall = async () => {
     console.log('🔴 [CALL END] handleEndCall called', { 
@@ -132,9 +119,7 @@ export default function CallPage() {
       agentId: agent?.id 
     });
     
-    // Guardar el transcript final y procesarlo ANTES de redirigir
     if (call && agent) {
-      // Usar el transcript más reciente (del ref o del estado)
       const finalTranscript = latestTranscriptRef.current || call.transcript || '';
       
       console.log('📝 [CALL END] Final transcript length:', finalTranscript.length);
@@ -144,7 +129,6 @@ export default function CallPage() {
       console.log('📋 [CALL END] Agent dataSchema fields:', agent.dataSchema?.fields?.length || 0);
       console.log('📋 [CALL END] Agent systemPrompt length:', agent.systemPrompt?.length || 0);
       
-      // Actualizar el estado de la llamada a completada
       const completedCall: Call = {
         ...call,
         status: 'completed',
@@ -154,12 +138,10 @@ export default function CallPage() {
       saveCall(completedCall);
       console.log('✅ [CALL END] Call saved as completed');
 
-      // Si hay transcript, parsearlo
       if (finalTranscript.trim()) {
         console.log('🤖 [TRANSCRIPT PARSE] Starting transcript parsing...');
         console.log('📝 [TRANSCRIPT PARSE] Transcript to parse length:', finalTranscript.length);
         
-        // Validar que tenemos los datos necesarios antes de parsear
         if (!agent.dataSchema || !agent.dataSchema.fields || agent.dataSchema.fields.length === 0) {
           console.error('❌ [TRANSCRIPT PARSE] Agent dataSchema is missing or empty');
           alert('Error: El agente no tiene un schema de datos configurado. Por favor, configura el agente primero.');
@@ -182,13 +164,11 @@ export default function CallPage() {
           return;
         }
 
-        // Limpiar y preparar el transcript para parsing
         const cleanedTranscript = finalTranscript
           .trim()
-          .replace(/\n{3,}/g, '\n\n') // Normalizar saltos de línea múltiples
-          .replace(/^\s+|\s+$/gm, ''); // Limpiar espacios al inicio/fin de líneas
+          .replace(/\n{3,}/g, '\n\n')
+          .replace(/^\s+|\s+$/gm, '');
 
-        // Validar que el transcript tenga contenido suficiente
         if (cleanedTranscript.length < 20) {
           console.warn('⚠️ [TRANSCRIPT PARSE] Transcript too short, skipping parse');
           alert('El transcript es muy corto. Redirigiendo al agente.');
@@ -207,7 +187,6 @@ export default function CallPage() {
           systemPromptLength: agent.systemPrompt.length,
         });
 
-        // Mostrar indicador de carga
         const loadingTimeout = setTimeout(() => {
           console.log('⏳ [TRANSCRIPT PARSE] Parse taking longer than expected...');
         }, 5000);
@@ -239,12 +218,10 @@ export default function CallPage() {
               throw new Error(errorMessage);
             }
             
-            // Validar que la respuesta tiene la estructura esperada
             if (!responseData || typeof responseData !== 'object') {
               throw new Error('Formato de respuesta inválido');
             }
             
-            // Validar estructura mínima de datos
             const hasValidStructure = 
               (responseData.respuestas && Array.isArray(responseData.respuestas)) ||
               (responseData.metricas && typeof responseData.metricas === 'object') ||
@@ -270,7 +247,6 @@ export default function CallPage() {
             });
             console.log('📊 [TRANSCRIPT PARSE] Full structured data:', JSON.stringify(structuredData, null, 2));
             
-            // Validar estructura mínima
             if (!structuredData.respuestas && !structuredData.metricas && !structuredData.resumen) {
               console.warn('⚠️ [TRANSCRIPT PARSE] Structured data seems incomplete, but proceeding...');
             }
@@ -282,8 +258,6 @@ export default function CallPage() {
             saveCall(updatedCall);
             console.log('💾 [TRANSCRIPT PARSE] Call saved with structured data, callId:', updatedCall.id);
             
-            // Redirigir a la página de resultados después del parseo exitoso
-            // Pasar el callId como query param para identificar la llamada específica
             console.log('🔄 [TRANSCRIPT PARSE] Redirecting to results page:', `/call/${agent.id}/results?callId=${updatedCall.id}`);
             router.push(`/call/${agent.id}/results?callId=${updatedCall.id}`);
           })
@@ -296,16 +270,12 @@ export default function CallPage() {
               transcriptLength: cleanedTranscript.length,
             });
             
-            // Guardar el call sin structuredData para que no se pierda
-            // Nota: El tipo Call no incluye 'error', pero guardamos el call de todas formas
             saveCall(completedCall);
             console.log('💾 [TRANSCRIPT PARSE] Call saved (parse failed, but transcript preserved)');
             
-            // Mostrar error al usuario con más contexto
             const errorMessage = error.message || 'Error desconocido al procesar el transcript';
             alert(`Error al procesar el transcript: ${errorMessage}\n\nEl transcript se ha guardado pero no se pudo estructurar. Serás redirigido al agente.`);
             
-            // Redirigir al agente
             if (agent) {
               router.push(`/agent/${agent.id}`);
             } else {
@@ -316,7 +286,6 @@ export default function CallPage() {
         console.log('⚠️ [CALL END] No transcript to parse (empty or too short)');
         console.log('⚠️ [CALL END] Transcript value:', finalTranscript);
         console.log('⚠️ [CALL END] Transcript trimmed length:', finalTranscript.trim().length);
-        // Si no hay transcript, redirigir al agente
         if (agent) {
           router.push(`/agent/${agent.id}`);
         } else {
@@ -325,12 +294,10 @@ export default function CallPage() {
       }
     } else {
       console.log('⚠️ [CALL END] Missing call or agent data');
-      // Si falta información, redirigir al inicio
       router.push('/');
     }
   };
 
-  // Función para generar un transcript mock para testing
   const generateMockTranscript = (dataSchema: any): string => {
     const mockTranscript = `
 Agente: Hola, buenos días. Estoy llamando para hacer un seguimiento. ¿Me podrías decir tu nombre completo, por favor?
@@ -368,24 +335,50 @@ Agente: Adiós, María. Que tengas un buen día.
     return mockTranscript;
   };
 
+  // Loading State
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Cargando...</p>
+      <div className="min-h-screen bg-gradient-to-br from-[#0F4C3A] via-[#134E4A] to-[#0D3D2E] flex items-center justify-center">
+        {/* Efectos de fondo */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-[#5EEAD4]/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#A7F3D0]/10 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-[#5EEAD4]/30 blur-xl rounded-full animate-pulse"></div>
+            <Loader2 className="w-10 h-10 text-[#5EEAD4] animate-spin relative" />
+          </div>
+          <p className="text-[#A7F3D0]/70 text-sm tracking-wider">Preparando llamada...</p>
+        </div>
       </div>
     );
   }
 
+  // Agent Not Found
   if (!agent) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center bg-white p-8 rounded-lg border border-gray-200 shadow-sm">
-          <p className="text-gray-900 text-xl mb-4 font-semibold">Agente no encontrado</p>
-          <p className="text-gray-600 mb-6">El agente con ID {params.agentId} no existe en tu almacenamiento local.</p>
+      <div className="min-h-screen bg-gradient-to-br from-[#0F4C3A] via-[#134E4A] to-[#0D3D2E] flex items-center justify-center p-6">
+        {/* Efectos de fondo */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-[#5EEAD4]/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#A7F3D0]/10 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10 text-center bg-[#0D3D2E]/60 backdrop-blur-sm p-10 rounded-2xl border border-[#5EEAD4]/20 max-w-md">
+          <div className="inline-block p-4 bg-red-500/10 rounded-full mb-6">
+            <AlertCircle className="w-10 h-10 text-red-400" />
+          </div>
+          <p className="text-white text-xl font-semibold mb-2">Agente no encontrado</p>
+          <p className="text-[#A7F3D0]/60 mb-6 text-sm">
+            El agente con ID <span className="font-mono text-[#5EEAD4]">{params.agentId}</span> no existe en tu almacenamiento local.
+          </p>
           <button
             onClick={() => router.push('/')}
-            className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#5EEAD4] to-[#A7F3D0] text-[#0F4C3A] rounded-xl font-semibold transition-all duration-300 hover:shadow-[0_0_30px_rgba(94,234,212,0.4)] hover:scale-105"
           >
+            <ArrowLeft className="w-4 h-4" />
             Volver al inicio
           </button>
         </div>
@@ -393,16 +386,29 @@ Agente: Adiós, María. Que tengas un buen día.
     );
   }
 
+  // Agent Without ElevenLabs ID
   if (!agent.elevenLabsAgentId) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center bg-white p-8 rounded-lg border border-gray-200 shadow-sm">
-          <p className="text-gray-900 text-xl mb-4 font-semibold">Agente incompleto</p>
-          <p className="text-gray-600 mb-6">Este agente no tiene un ID de ElevenLabs configurado. Por favor, créalo nuevamente.</p>
+      <div className="min-h-screen bg-gradient-to-br from-[#0F4C3A] via-[#134E4A] to-[#0D3D2E] flex items-center justify-center p-6">
+        {/* Efectos de fondo */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-[#5EEAD4]/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-[#A7F3D0]/10 rounded-full blur-3xl"></div>
+        </div>
+        
+        <div className="relative z-10 text-center bg-[#0D3D2E]/60 backdrop-blur-sm p-10 rounded-2xl border border-[#5EEAD4]/20 max-w-md">
+          <div className="inline-block p-4 bg-amber-500/10 rounded-full mb-6">
+            <Settings className="w-10 h-10 text-amber-400" />
+          </div>
+          <p className="text-white text-xl font-semibold mb-2">Agente incompleto</p>
+          <p className="text-[#A7F3D0]/60 mb-6 text-sm">
+            Este agente no tiene un ID de ElevenLabs configurado. Por favor, créalo nuevamente.
+          </p>
           <button
             onClick={() => router.push('/agent/new')}
-            className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#5EEAD4] to-[#A7F3D0] text-[#0F4C3A] rounded-xl font-semibold transition-all duration-300 hover:shadow-[0_0_30px_rgba(94,234,212,0.4)] hover:scale-105"
           >
+            <Phone className="w-4 h-4" />
             Crear nuevo agente
           </button>
         </div>
@@ -410,7 +416,6 @@ Agente: Adiós, María. Que tengas un buen día.
     );
   }
 
-  // Usar siempre el agente por defecto
   const defaultAgentId = 'agent_2401kdkas1a9evba5w8tezpfesvf';
   
   return (
@@ -421,4 +426,3 @@ Agente: Adiós, María. Que tengas un buen día.
     />
   );
 }
-
